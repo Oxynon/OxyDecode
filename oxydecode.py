@@ -1,163 +1,365 @@
 #!/usr/bin/env python3
 
-######################################
-# OxyDecode
-# A tool for simple Cryptoanalysis
-# Made by Oxynon
+#
+# output and input are by default treated as a string.
+# specify --byte-in to interpret the input as bytes
+# specify --byte-out to convert the output to bytes
+# 
+# modules can be chained and will be done in order
+# from left to right.
+# 
+#
+# oxydecode.py <input> [--module <MODULE>]
 #
 #
-# Examples:
-#
-# 	- oxydecode.py <ciphertext>
-# 	  
-# 	  using oxydecode in this way allows the program
-#	  to move through all the features and determines
-# 	  if the ciphertext can be solved by it.
-#
-#
-#	- oxydecode.py convert <ciphertext>
-#
-#	  'convert' converts ASCII to Bytes (Binary/Decimal/Hex/Octal)
-#	  and vice-versa. 
-#
-# 	- oxydecode.py cipher julius [1-23] <ciphertext>
-#
-#	  the keyword 'cipher' is used to specify 
-#
-#	  the keyword 'convert' is used 
-######################################
 
 import argparse
 from argparse import RawTextHelpFormatter
+import sys
+import binascii
 
-class Decoder:
+class View:
 
 	def __init__(self):
+		self.type = "view"
+		self.Text = self.Text()
+		self.Bytes = self.Bytes()
 
-		# INITIALIZE ALL CLASSES FIRST
-		self.convert = self.Convert()
-		self.transform = self.Transform()
-
-		# STRINGS
-		self.mode_help = "specify to use a specific mode\nuse '<keyword> -h' to get more info"
-
-	def parse(self):
-		# ARGPARSE STUFF
-		self.parser = argparse.ArgumentParser(description="A tool for simple Cryptoanalysis", formatter_class=RawTextHelpFormatter)
-		self.parser.add_argument("-v", "--verbose", help="show more verbose output", action="store_true")
-		self.subparsers = self.parser.add_subparsers(help=self.mode_help)
-
-		self.parser_convert = self.subparsers.add_parser("convert", help=self.convert.help, formatter_class=RawTextHelpFormatter)
-		self.parser_convert.add_argument("input", help=self.convert.input.help, type=str, action="store")
-
-		# TRANSFORM SUBPARSER
-		self.parser_transform = self.subparsers.add_parser("transform", help=self.transform.help, formatter_class=RawTextHelpFormatter)
-		self.subparsers_transform = self.parser_transform.add_subparsers(help=self.mode_help)
-
-		# REPLACE SUBPARSER
-		self.subparser_transform_replace = self.subparsers_transform.add_parser("replace", help=self.transform.replace.help, formatter_class=RawTextHelpFormatter)
-		self.subparser_transform_replace.add_argument("text", help=self.transform.replace.help, type=str, action="store")
-		self.subparser_transform_replace.add_argument("find", help=self.transform.replace.help, type=str, action="store")
-		self.subparser_transform_replace.add_argument("replace", help=self.transform.replace.help, type=str, action="store")
-		
-		# REVERSE SUBPARSER
-		self.subparser_transform_reverse = self.subparsers_transform.add_parser("reverse", help=self.transform.reverse.help, formatter_class=RawTextHelpFormatter)
-		self.subparser_transform_reverse.add_argument("text", help=self.transform.reverse.help, action="store")
-
-		# CHANGECASE SUBPARSER
-		self.subparser_transform_changecase = self.subparsers_transform.add_parser("changecase", help=self.transform.changecase.help, formatter_class=RawTextHelpFormatter)
-		self.subparser_transform_changecase.add_argument("casetype", choices=["lower", "upper", "capitalize", "alternate", "invert"], help=self.transform.changecase.help, action="store")
-		self.subparser_transform_changecase.add_argument("text", help=self.transform.changecase.help, action="store")
-
-		# NUMERAL SUBPARSER
-		self.subparser_transform_numeral = self.subparsers_transform.add_parser("numeral", help=self.transform.numeral.help, formatter_class=RawTextHelpFormatter)
-		self.subparser_transform_numeral.add_argument("in_type", choices=[2,8,10,16,"roman"], help=self.transform.numeral.help, action="store")		
-		self.subparser_transform_numeral.add_argument("out_type", choices=[2,8,10,16,"roman"], help=self.transform.numeral.help, action="store")
-		self.subparser_transform_numeral.add_argument("input", help=self.transform.numeral.help, action="store")
-		
-		# BITWISE SUBPARSER
-		self.subparser_transform_bitwise = self.subparsers_transform.add_parser("bitwise", help=self.transform.bitwise.help, formatter_class=RawTextHelpFormatter)
-		self.subparser_transform_bitwise.add_argument("operation", choices=["NOT", "AND", "OR", "XOR", "NAND", "NOR", "NXOR"], help=self.transform.bitwise.help, action="store")
-		self.subparser_transform_bitwise.add_argument("number", help=self.transform.bitwise.help, action="store")
-
-
-		self.args = self.parser.parse_args()
-
-	class Convert:
-
+	class Text:
 		def __init__(self):
-			self.help = "convert ASCII to bytes"
-			self.input = self.Input()
+			self.parser = ""
+			self.help = ("prints the analyzed string"
+						"\nafter a module has been used."
+						"\nno additional argument required"+SPACER)
+		def run(self):
+			print("p> "+MUTA_STRING)
 
-		class Input:
-
-			def __init__(self):
-				self.help = ("convert - ASCII <-> (Decimal, Binary, Hexadecimal, Octal)"
-						"\nOutputs all when using ASCII"
-						"\nas input. When converting"
-						"\nto ASCII the input must be prepended by:"
-						"\n'd/' for decimal"
-						"\n'b/' for binary"
-						"\n'h/' for hexadecimal"
-						"\n'o/' for octal")
-
-	class Transform:
-
+	class Bytes:
+		
 		def __init__(self):
-			self.help = "multiple transformations of data"
-			self.replace = self.Replace()
-			self.reverse = self.Reverse()
-			self.changecase = self.ChangeCase()
-			self.numeral = self.Numeral()
-			self.bitwise = self.Bitwise()
+			self.parser = ""
 
-		class Replace:
+			# runcount variable to iterate through args.b
+			self.runcount = 0
 
-			def __init__(self):
-				self.help = ("finds a specific character or"
-							"\nsequence of characters and"
-							"\nreplaces them"
-							"\n\nExample:"
-							"\n\toxydecode.py transform -replace <input> <find> <replace>"
-							"\n ")
+			# check_ok to see if the input check was already run
+			self.check_ok = False
 
-		class Reverse:
+			# multi_arg to see if -b was supplied multiple times
+			self.multi_arg = False
 
-			def __init__(self):
-				self.help = ("reverses a string of characters"
-							"\n\nExample:"
-							"\n\toxydecode.py transform -reverse <input>"
-							"\n ")
+			self.print_str = ""
 
-		class ChangeCase:
+			self.format_choices = ["hex", "bin"]
+			self.groupby_choices = ["0", "hB", "B", "2B", "4B"]
 
-			def __init__(self):
-				self.help = ""
+			self.help = ("prints the analyzed string"
+						"\nbut as bytes"
+						"\n\nthis modules requires two additional"
+						"\narguments. format & groupby"
+						"\n\nformat must be one of these:"
+						"\nhex -> output hexadecimal"
+						"\nbin -> output binary"
+						"\n\ngroupby dictates how to"
+						"\ngroup the bytes. choices are:"
+						"\n0 -> no groupings"
+						"\nhB -> half Byte groupings"
+						"\nB -> Byte groupings"
+						"\n2B -> two Byte groupings"
+						"\n4B -> four Byte groupings"
+						"\n\nthis module does not change"
+						"\nthe currently worked-on string"
+						"\nin the supplied chain"+SPACER)
 
-		class Numeral:
+		def run(self):
+			
+			if not self.check_ok:
+				
+				# check if multiple -b options have been supplied
+				if any(isinstance(i, list) for i in args.b):
+					self.multi_arg = True
+				
+					# check format & groupby value
+					for parameters in args.b:
+						if parameters[0] not in self.format_choices:
+							parser.error("{} is not a valid format".format(parameters[0]))
+						if parameters[1] not in self.groupby_choices:
+							parser.error("{} is not a valid groupby option".format(parameters[1]))
 
-			def __init__(self):
-				self.help = ""
+				self.check_ok = True
 
-		class Bitwise:
+			# check if multiple -b options have been supplied
+			if self.multi_arg:
+				form, groupby = args.b[self.runcount]
+				self.runcount += 1
+			else:
+				form, groupby = args.b
 
-			def __init__(self):
-				self.help = ""
+			# check format & groupby value
+			if form not in self.format_choices:
+				parser.error("{} is not a valid format".format(form))
+			if groupby not in self.groupby_choices:
+				parser.error("{} is not a valid groupby option".format(groupby))
 
-	class Alphabet:
-		None
+			# apply format
+			if form == "hex":
+				self.print_str = "".join(hex(ord(c))[2:] for c in MUTA_STRING)
+				if groupby == "hB":
+					self.print_str = " ".join(list(self.print_str))
+				elif groupby == "B":
+					self.print_str = " ".join([self.print_str[i:i+2] for i in range(0, len(self.print_str), 2)])
+				elif groupby == "2B":
+					self.print_str = " ".join([self.print_str[i:i+4] for i in range(0, len(self.print_str), 4)])
+				elif groupby == "4B":
+					self.print_str = " ".join([self.print_str[i:i+8] for i in range(0, len(self.print_str), 8)])
 
-	class Cipher:
-		None
+			elif form == "bin":
+				self.print_str = "".join(bin(ord(c))[2:] for c in MUTA_STRING)
+				if groupby == "hB":
+					self.print_str = " ".join([self.print_str[i:i+4] for i in range(0, len(self.print_str), 4)])
+				elif groupby == "B":
+					self.print_str = " ".join([self.print_str[i:i+8] for i in range(0, len(self.print_str), 8)])
+				elif groupby == "2B":
+					self.print_str = " ".join([self.print_str[i:i+16] for i in range(0, len(self.print_str), 16)])
+				elif groupby == "4B":
+					self.print_str = " ".join([self.print_str[i:i+32] for i in range(0, len(self.print_str), 32)])
 
-	class Encode:
-		None
+			print("b> "+self.print_str)
 
-	class Modern:
-		None
+			return 0
+
+class Transform:
+
+	def __init__(self):
+		self.type = "transform"
+		self.Modules = ["replace", "reverse", "changecase", "numeral", "bitwise"]
+		self.Replace = self.Replace()
+		self.Reverse = self.Reverse()
+		self.ChangeCase = self.ChangeCase()
+		self.Numeral = self.Numeral()
+		self.Bitwise = self.Bitwise()
+
+	class Replace:
+		
+		def __init__(self):
+			self.help = ("find a substring and"
+						"\nreplace it with something"
+						"\n\ntwo arguments required:"
+						"\nfind -> the substring to find"
+						"\nreplace -> string to replace with"+SPACER)
+
+			self.runcount = 0
+			self.check_ok = False
+			self.multi_arg = False
+
+		def run(self):
+			global MUTA_STRING
+
+			if not self.check_ok:
+				if any(isinstance(i, list) for i in args.rp):
+					self.multi_arg = True
+					self.check_ok = True
+
+			# check if multiple -rp options have been supplied
+			if self.multi_arg:
+				find, replace = args.rp[self.runcount]
+				self.runcount += 1
+			else:
+				find, replace = args.rp
+
+			if find not in MUTA_STRING:
+				print("Error - '{}' not found in '{}'".format(find, MUTA_STRING))
+				if args.verbose:
+					print("rp failed // find:{} // replace:{}\nold string: {}".format(find, replace, MUTA_STRING))
+				return 1
+			else:
+				# the actual magic
+				MUTA_STRING = MUTA_STRING.replace(find, replace)
+				if args.verbose:
+					print("rp successful // find:{} // replace:{}\nNew string: {}".format(find, replace, MUTA_STRING))
+				return 0
+
+	class Reverse:
+		# reversing a file could be a future feature
+		# for now it only reverses strings
+		def __init__(self):
+			self.help = "reverses the currently used string"+SPACER
+			#self.check_ok = False
+			#self.multi_arg = False
+
+		def run(self):
+			global MUTA_STRING
+
+			old_string = MUTA_STRING
+
+			MUTA_STRING = MUTA_STRING[::-1]
+
+			if args.verbose:
+				print("rv> old string: {}\nrv> new string: {}".format(old_string, MUTA_STRING))
+
+	class ChangeCase:
+		def __init__(self):
+			self.help = ("changes the case of the current string"
+						"\n\nrequired argument:"
+						"\nlower, l -> make string lower case"
+						"\nupper, u -> make string upper case"
+						"\ncapitalize, c -> capitalize a string"
+						"\nalternating, a -> alternate case (lower, upper)"
+						"\ninverse, i -> invert case on string"+SPACER)
+			self.choices=["lower", "upper", "capitalize", "alternating", "inverse", "l", "u", "c", "a", "i"]
+			self.check_ok = False
+			self.multi_arg = False
+			self.runcount = 0
+
+		def run(self):
+			global MUTA_STRING
+
+			if not self.check_ok:
+				if any(isinstance(i, list) for i in args.case):
+					self.multi_arg = True
+
+			# check if multiple -cc options have been supplied
+			if self.multi_arg:
+				option = args.case[self.runcount]
+				self.runcount += 1
+			else:
+				option = args.case[0]
+
+			if option in ["lower", "l"]:
+				MUTA_STRING = MUTA_STRING.lower()
+			elif option in ["upper", "u"]:
+				MUTA_STRING = MUTA_STRING.upper()
+			elif option in ["capitalize", "c"]:
+				MUTA_STRING = MUTA_STRING.capitalize()
+			elif option in ["alternating", "a"]:
+				MUTA_STRING = list(MUTA_STRING)
+				i = 0
+				while i < len(MUTA_STRING):
+					if i%2 == 0:
+						MUTA_STRING[i] = MUTA_STRING[i].lower()
+					else:
+						MUTA_STRING[i] = MUTA_STRING[i].upper()
+					i+=1
+				MUTA_STRING = "".join(MUTA_STRING)
+
+			elif option in ["inverse", "i"]:
+				MUTA_STRING = MUTA_STRING.swapcase()
+
+
+	class Numeral:
+		def __init__(self):
+			self.help = ""
+			self.check_ok = False
+			self.multi_arg = False
+
+	class Bitwise:
+		def __init__(self):
+			self.help = ""
+			self.check_ok = False
+			self.multi_arg = False
+
+class Alphabets:
+	
+	def __init__(self):
+		self.type = "alphabet"
+
+class Ciphers:
+	
+	def __init__(self):
+		self.type = "cipher"
+
+class Encoding:
+	
+	def __init__(self):
+		self.type = "encoding"
+
+class Modern:
+	
+	def __init__(self):
+		self.type = "modern"
+
+def wizardSetup():
+	# sets the modules and output
+	# via an interactive wizard
+	# instead of via arguments
+	None
+
+def mainLoop():
+
+	if args.wizard:
+		wizardSetup()
+
+	module_error = 0
+
+	for arg in arg_chain:
+		if arg == "-p":
+			module_error = cView.Text.run()
+		elif arg == "-b":
+			module_error = cView.Bytes.run()
+		elif arg == "-rp":
+			module_error = cTransform.Replace.run()
+		elif arg == "-rv":
+			module_error = cTransform.Reverse.run()
+		elif arg == "-cc":
+			module_error = cTransform.ChangeCase.run()
+
+		if module_error:
+			break
 
 if __name__ == "__main__":
 
-	CHOICES=["convert", "transform", "alphabet", "cipher", "encode", "modern"]
-	OD = Decoder()
-	OD.parse()
+	SPACER = "\n "
+
+	def get_chain(args):
+		chain = []
+		for arg in args:
+			if "-" in arg:
+				chain.append(arg)
+		return chain
+
+
+	cView = View()
+	cTransform = Transform()
+
+	modules = ["view", "transform", "alphabet", "cipher", "encode", "modern"]
+
+	parser = argparse.ArgumentParser(description="A tool for simple Cryptoanalysis", formatter_class=RawTextHelpFormatter)
+	parser.add_argument("input", help="your input string", action="store")
+	parser.add_argument("-v", "--verbose", help="show more verbose output", action="store_true")
+	parser.add_argument("--wizard", help="ignore śupplied arguments and\nuse the wizard instead"+SPACER, action="store_true")
+
+	parser.add_argument("-p", help=cView.Text.help, action="store_true")
+
+	parser.add_argument("-b", help=cView.Bytes.help, nargs=2, metavar=("format", "groupby"), action="append")
+
+	parser.add_argument("-rp", help=cTransform.Replace.help, nargs=2, metavar=("find", "replace"), action="append")
+
+	parser.add_argument("-rv", help=cTransform.Reverse.help, action="store_true")
+
+	parser.add_argument("-cc", help=cTransform.ChangeCase.help, choices=cTransform.ChangeCase.choices, dest="case", action="append")
+
+	parser.add_argument("-n", help=cTransform.Numeral.help, nargs=2, metavar=("read", "convertto"), action="append")
+
+	parser.add_argument("-bw", help=cTransform.Bitwise.help, nargs=2, metavar=("operation", "operand_b"), action="append")
+
+	#parser.add_argument("--byte-in", help="treat input as bytes", action="store_true")
+	#parser.add_argument("--byte-out", help="treat output as bytes", action="store_true")
+	#subparsers = parser.add_subparsers(help="specify a module\nuse '<module> -h' to get more info")
+
+	#mText.parser = subparsers.add_parser("text", help=mText.help, formatter_class=RawTextHelpFormatter)
+	#mText.parser.add_argument("view_true", help="True if 'view' has been supplied", action="store_true")
+	
+	#mBytes.parser = subparsers.add_parser("bytes", help=mBytes.help, formatter_class=RawTextHelpFormatter)
+	#mBytes.parser.add_argument("format", help=mBytes.help_format, choices=mBytes.format_choices, action="store")
+	#mBytes.parser.add_argument("groupby", help=mBytes.help_groupby, choices=mBytes.groupby_choices, action="store")
+
+	#parser_transform = subparsers.add_parser("transform", help="", formatter_class=RawTextHelpFormatter)
+	#parser_transform.add_argument("module", choices=cTransform.modules, action="store")
+
+	args = parser.parse_args()
+	MUTA_STRING = args.input
+	arg_chain = get_chain(sys.argv)
+	print(args)
+	print(sys.argv)
+	print(get_chain(sys.argv))
+	mainLoop()
