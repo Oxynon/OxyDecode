@@ -32,7 +32,19 @@ class View:
 						"\nafter a module has been used."
 						"\nno additional argument required"+SPACER)
 		def run(self):
-			print("p> "+MUTA_STRING)
+			if args.show_prefix:
+				if MUTA_STRING_TYPE == "string":
+					print("p> "+MUTA_STRING)
+				elif MUTA_STRING_TYPE == "binary":
+					print("p0b> "+MUTA_STRING)
+				elif MUTA_STRING_TYPE == "octal":
+					print("p0o> "+MUTA_STRING)
+				elif MUTA_STRING_TYPE == "decimal":
+					print("p0d> "+MUTA_STRING)
+				elif MUTA_STRING_TYPE == "hexadecimal":
+					print("p0x> "+MUTA_STRING)
+			else:
+				print("p> "+MUTA_STRING)
 
 	class Bytes:
 		
@@ -54,10 +66,10 @@ class View:
 			self.groupby_choices = ["0", "hB", "B", "2B", "4B"]
 
 			self.help = ("prints the analyzed string"
-						"\nbut as bytes"
+						"\nbut interprets them as ASCII bytes"
 						"\n\nthis modules requires two additional"
 						"\narguments. format & groupby"
-						"\n\nformat must be one of these:"
+						"\n\nformat output must be one of these:"
 						"\nhex -> output hexadecimal"
 						"\nbin -> output binary"
 						"\n\ngroupby dictates how to"
@@ -251,6 +263,93 @@ class Transform:
 			self.help = ""
 			self.check_ok = False
 			self.multi_arg = False
+			self.choices = ["bin", "oct", "dec", "hex", "roman"]
+			self.readtype = ""
+			self.runcount = 0
+			self.hexchars = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"]
+
+		def run(self):
+			global MUTA_STRING
+
+			def mutate_string(mstring, option, base):
+				global MUTA_STRING_TYPE
+
+				if option == "bin":
+					MUTA_STRING_TYPE = "binary"
+					mstring = str(bin(int(mstring, base)))[2:]
+				if option == "oct":
+					MUTA_STRING_TYPE = "octal"
+					mstring = str(oct(int(mstring, base)))[2:]
+				elif option == "dec":
+					MUTA_STRING_TYPE = "decimal"
+					mstring = str(int(mstring, base))
+				elif option == "hex":
+					MUTA_STRING_TYPE = "hexadecimal"
+					mstring = str(hex(int(mstring, base)))[2:]
+				elif option == "roman":
+					MUTA_STRING_TYPE = "roman"
+					########## TO BE IMPLEMENTED
+					parser.error("conversion to roman numerals is not yet implemented")
+
+				return mstring
+
+			# check if args are nested
+			if not self.check_ok:
+				if any(isinstance(i, list) for i in args.n):
+					self.multi_arg = True
+
+			# check if multiple -n options have been supplied
+			if self.multi_arg:
+				read, convertto = args.n[self.runcount]
+				self.runcount += 1
+			else:
+				read, convertto = args.numeral
+
+			# check if args are proper
+			if read not in self.choices:
+				parser.error("{} is not a valid option for 'read'".format(read))
+			if convertto not in self.choices:
+				parser.error("{} is not a valid option for 'convertto'".format(convertto))
+			if read == convertto:
+				return 0
+
+			# check if args are the supplied type
+			#args.read
+			#args.convertto
+			if read == "bin":
+				
+				for char in MUTA_STRING:
+					if char not in ["0", "1"]:
+						parser.error("string contained {}, which is not binary".format(char))
+
+				MUTA_STRING = mutate_string(MUTA_STRING, convertto, 2)
+
+			elif read == "oct":
+				for char in MUTA_STRING:
+					if char not in [str(x) for x in range(0,8)]:
+						parser.error("string contained {}, which is not octal".format(char))
+
+				MUTA_STRING = mutate_string(MUTA_STRING, convertto, 8)
+
+			elif read == "dec":
+				for char in MUTA_STRING:
+					if char not in [str(x) for x in range(0,10)]:
+						parser.error("string contained {}, which is not decimal".format(char))
+
+				MUTA_STRING = mutate_string(MUTA_STRING, convertto, 10)
+
+			elif read == "hex":
+				for char in MUTA_STRING:
+					if char.lower() not in self.hexchars:
+						parser.error("string contained {}, which is not hexadecimal".format(char))
+
+				MUTA_STRING = mutate_string(MUTA_STRING, convertto, 16)
+
+			elif read == "roman":
+				for char in MUTA_STRING:
+					if char.lower() not in ["i", "v", "x", "l", "c", "d", "m"]:
+						parser.error("string contained {}, which is not a roman numeral".format(char))
+
 
 	class Bitwise:
 		def __init__(self):
@@ -302,6 +401,8 @@ def mainLoop():
 			module_error = cTransform.Reverse.run()
 		elif arg == "-cc":
 			module_error = cTransform.ChangeCase.run()
+		elif arg == "-n":
+			module_error = cTransform.Numeral.run()
 
 		if module_error:
 			break
@@ -342,6 +443,7 @@ if __name__ == "__main__":
 
 	parser.add_argument("-bw", help=cTransform.Bitwise.help, nargs=2, metavar=("operation", "operand_b"), action="append")
 
+	parser.add_argument("--show-prefix", help="show prefixes on all numbers except decimal", action="store_true", dest="show_prefix")
 	#parser.add_argument("--byte-in", help="treat input as bytes", action="store_true")
 	#parser.add_argument("--byte-out", help="treat output as bytes", action="store_true")
 	#subparsers = parser.add_subparsers(help="specify a module\nuse '<module> -h' to get more info")
@@ -358,6 +460,7 @@ if __name__ == "__main__":
 
 	args = parser.parse_args()
 	MUTA_STRING = args.input
+	MUTA_STRING_TYPE = "string"
 	arg_chain = get_chain(sys.argv)
 	print(args)
 	print(sys.argv)
