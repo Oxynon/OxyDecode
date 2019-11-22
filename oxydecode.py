@@ -79,11 +79,12 @@ class View:
 						"\nB -> Byte groupings"
 						"\n2B -> two Byte groupings"
 						"\n4B -> four Byte groupings"
-						"\n\nthis module does not change"
-						"\nthe currently worked-on string"
-						"\nin the supplied chain"+SPACER)
+						"\n"+SPACER)
 
 		def run(self):
+
+			global MUTA_STRING
+			global MUTA_STRING_TYPE
 			
 			if not self.check_ok:
 				
@@ -115,7 +116,11 @@ class View:
 
 			# apply format
 			if form == "hex":
-				self.print_str = "".join(hex(ord(c))[2:] for c in MUTA_STRING)
+				if MUTA_STRING_TYPE == "binary":
+					self.print_str = hex(int(MUTA_STRING.replace(" ", ""), 2))[2:]
+				else:
+					self.print_str = "".join(hex(ord(c))[2:] for c in MUTA_STRING)
+				MUTA_STRING_TYPE = "hexadecimal"
 				if groupby == "hB":
 					self.print_str = " ".join(list(self.print_str))
 				elif groupby == "B":
@@ -126,7 +131,11 @@ class View:
 					self.print_str = " ".join([self.print_str[i:i+8] for i in range(0, len(self.print_str), 8)])
 
 			elif form == "bin":
-				self.print_str = "".join(bin(ord(c))[2:] for c in MUTA_STRING)
+				if MUTA_STRING_TYPE == "hexadecimal":
+					self.print_str = bin(int(MUTA_STRING.replace(" ", ""), 16))[2:]
+				else:
+					self.print_str = "".join(bin(ord(c))[2:] for c in MUTA_STRING)
+				MUTA_STRING_TYPE = "binary"
 				if groupby == "hB":
 					self.print_str = " ".join([self.print_str[i:i+4] for i in range(0, len(self.print_str), 4)])
 				elif groupby == "B":
@@ -137,6 +146,8 @@ class View:
 					self.print_str = " ".join([self.print_str[i:i+32] for i in range(0, len(self.print_str), 32)])
 
 			print("b> "+self.print_str)
+
+			MUTA_STRING = self.print_str
 
 			return 0
 
@@ -271,6 +282,9 @@ class Transform:
 		def run(self):
 			global MUTA_STRING
 
+			def int_to_roman(mstring):
+				None
+
 			def mutate_string(mstring, option, base):
 				global MUTA_STRING_TYPE
 
@@ -351,11 +365,15 @@ class Transform:
 						parser.error("string contained {}, which is not a roman numeral".format(char))
 
 
+
 	class Bitwise:
 		def __init__(self):
 			self.help = ""
 			self.check_ok = False
 			self.multi_arg = False
+
+		def run(self):
+			None
 
 class Alphabets:
 	
@@ -403,6 +421,8 @@ def mainLoop():
 			module_error = cTransform.ChangeCase.run()
 		elif arg == "-n":
 			module_error = cTransform.Numeral.run()
+		elif arg == "-bw":
+			modul_error = cTransform.Bitwise.run()
 
 		if module_error:
 			break
