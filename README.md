@@ -10,12 +10,17 @@ See the list below to get an overview of what does and doesn't work.
 
 - Print current string
 - Transform
-  - To Ascii*
+  - To Ascii
   - To Bytes
   - Find and replace
   - Reverse
   - Change letter case
-  - Change numeral system*
+  - Change numeral system
+  	- Binary
+  	- Octal
+  	- Decimal
+  	- Hexadecimal
+  	- Roman Letters*
   - Bitwise operations*
 - Alphabets*
 - Ciphers*
