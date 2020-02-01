@@ -26,7 +26,7 @@ See the list below to get an overview of what does and doesn't work.
 - Ciphers*
 - Encoding*
 - Modern*
-- Interactive setup*
+- Interactive setup (Wizard)*
 
 
 ## How to use

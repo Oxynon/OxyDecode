@@ -416,8 +416,9 @@ class Transform:
 						"\nthe operator and the operand B (opB)"
 						"\noperand B type must be announced via"
 						"\nprefixes (0b, 0o, 0d, 0x)"
-						"\nexamples: ~&0xff"
-						"\n          ~0b1010"
+						"\nexamples: \"~&0xff\""
+						"\n          \"~0b1010\""
+						"\nThis argument MUST be used with \" \""
 						"\n\n\tNOT  : ~opB"
 						"\n\tAND  : &opB"
 						"\n\tOR   : |opB"
@@ -428,9 +429,17 @@ class Transform:
 			self.check_ok = False
 			self.multi_arg = False
 			self.runcount = 0
-			self.legal_operations = ["~", "&", "|", "^"]
+			self.operations_dict = {"~":False,"&":False,"|":False,"^":False}
+			self.legal_operations = list(self.operations_dict.keys())
+			self.prefixes_dict = {"0b":False, "0o":False, "0d":False, "0x":False}
+			self.legal_prefixes = list(self.prefixes_dict.keys())
 
 		def run(self):
+
+			# reset parse flags
+			self.operations_dict = {"~":False,"&":False,"|":False,"^":False}
+			self.prefixes_dict = {"0b":False, "0o":False, "0d":False, "0x":False}
+
 			# check if args are nested
 			if not self.check_ok:
 				if any(isinstance(i, list) for i in args.bw):
@@ -444,7 +453,24 @@ class Transform:
 				operation = args.bw[0]
 
 
-
+			# check and parse supplied operation
+			if len(operation) < 4:
+				parser.error("operation '{}' is too short to be valid for -bw")
+			if operation[:1] in self.legal_operations:
+				if operation[:1] == "~":
+					self.operations_dict["~"] = True
+					if operation[1:2] in self.legal_operations:
+						self.operations_dict[operation[1:2]] = True
+						if operation[2:4] in self.legal_prefixes:
+							self.prefixes_dict[operation[2:4]] = True
+						else:
+							parser.error("prefix '{}' is invalid for -bw".format(operation[2:4]))
+					else:
+						parser.error("operation '{}' is invalid for -bw".format(operation[1:2]))
+				else:
+					self.operations_dict[operation[:1]] = True
+			else:
+				parser.error("operation '{}' is invalid for -bw".format(operation[:1]))
 
 class Alphabets:
 	
